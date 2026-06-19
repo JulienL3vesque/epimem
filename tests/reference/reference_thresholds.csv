@@ -1,0 +1,11 @@
+"case","name","value"
+"clean","epidemic_onset",53.3364493500851
+"clean","post_epidemic",60.4864309717407
+"clean","medium",249.923433464267
+"clean","high",441.898630020402
+"clean","very_high",568.489596350084
+"gappy","epidemic_onset",53.5691353215485
+"gappy","post_epidemic",60.4864309717407
+"gappy","medium",249.256678106608
+"gappy","high",442.621543311008
+"gappy","very_high",570.504361650489

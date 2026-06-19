@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "epimem"
+version = "0.1.0"
+description = "Faithful Python port of the core Moving Epidemic Method (MEM) from the R 'mem' package"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+authors = [{ name = "Julien Levesque", email = "julien.l3vesque@gmail.com" }]
+keywords = [
+    "epidemiology",
+    "influenza",
+    "surveillance",
+    "moving epidemic method",
+    "mem",
+    "epidemic threshold",
+    "public health",
+]
+dependencies = [
+    "numpy>=2.3",
+    "scipy>=1.16",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.9"]
+test = ["pytest>=8"]
+
+[project.urls]
+"Original R package (lozalojo/mem)" = "https://github.com/lozalojo/mem"
+
+# The library needs only numpy + scipy; tests add pytest, the plot module adds matplotlib.
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["epimem"]
+
+[tool.setuptools.package-data]
+epimem = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

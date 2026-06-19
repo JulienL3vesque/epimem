@@ -1,0 +1,4 @@
+recursive-include tests *.py
+recursive-include tests/reference *.csv *.R
+include GUIDE.md
+include LICENSE
