@@ -176,6 +176,11 @@ has grown.
   and so on**, so you can see whether the numbers move around (too little history) or settle
   down (enough history). Returns a `Stability` table. Use it when standing up a new indicator to
   judge how many seasons you need before the thresholds are reliable.
+- **`mem_evolution(seasons)`** — the season-by-season cousin of `mem_stability`: it rebuilds the
+  lines **as they would have looked each past year** — using only the seasons *before* each one
+  (`method="sequential"`, a real-time back-test), or leaving each season out in turn
+  (`method="cross"`). Returns an `Evolution` table. Use it to see how one big season (a severe flu
+  year, say) pulls the lines around, and which lines are stable versus driven by a single year.
 - **`mem_timing(one_season)`** — runs Step 2 for a **single** season: finds that season's
   epidemic window and pulls out its peak values. Returns an `EpidemicTiming` (start, end,
   duration, share-of-season, and the before/during/after peaks). Useful to ask "when did the
@@ -267,6 +272,14 @@ data): onset **2.4%**, medium **3.5%**, high **5.6%**, very high **6.9%** of cal
 Each new week is one new reading; whichever band it falls in is your headline, and the first
 reading above the onset line is your early warning. No judgement call, no arbitrary cut-off.
 
+**Folding 2025-26 in for next year.** Now that the 2025-26 season is finished, it joins the pile
+that draws *next* year's lines (the "re-draw once a year" rule above). With all four seasons, the
+2026-27 thresholds come out higher — onset **2.5%**, medium **4.1%**, high **7.7%**, very high
+**10.1%** — because that severe season is now part of the yardstick. One honest caveat: with only
+four seasons, the top two lines (high, very high) are essentially set by 2025-26 *alone* — drop it
+and they fall by about a third — so treat them as "best estimate for now." The onset line barely
+moves and is the one to trust. (`mem_evolution`, §5.4, is the tool that shows this season by season.)
+
 ---
 
 ## 7. What it is **not**: this is not a forecast
@@ -324,7 +337,7 @@ data and compared the numbers (the under-the-hood helpers are covered indirectly
 end-to-end checks):
 
 - The core thresholds, the cross-validated report card, both auto-tuners, the trend cut-offs, the
-  intensity table, and the full stability table all match R to **very tight tolerances** — the
+  intensity table, and the full stability and evolution tables all match R to **very tight tolerances** — the
   cross-validated, auto-tuner and companion outputs agree to about one part in a million, and the
   core thresholds even closer. A deliberately gap-poked version of the data (to exercise the
   missing-week patcher) agrees to within about a hundredth of a unit — still far inside rounding

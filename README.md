@@ -19,6 +19,7 @@ detection setting for your own seasons and run the usual reporting outputs.
 | `roc_analysis` | the **auto-tuner**: sweep the slope and pick the best value for your seasons |
 | `optimum_by_inspection` | tune the slope against epidemics you marked by eye |
 | `mem_stability` | how much the thresholds move as seasons accumulate |
+| `mem_evolution` | how the thresholds would have looked season by season (real-time, or leave-one-out) |
 
 Every one of these is verified to reproduce R `mem` on its own `flucyl` data (see Fidelity below).
 
@@ -86,6 +87,29 @@ ax.figure.savefig("mem.svg")
 
 matplotlib is imported lazily, so the core package never requires it.
 
+## Worked example — the bundled `flucyl` data
+
+`flucyl` is R `mem`'s own example dataset (33 weeks × 8 influenza seasons, Castilla y León), and it
+ships with this package in `tests/reference/`. Learning the thresholds from its eight past seasons
+and drawing them with `mem_chart` (above) gives the classic MEM picture:
+
+![MEM thresholds learned from the flucyl seasons](docs/flucyl_mem.png)
+
+The grey lines are the eight past seasons; the dashed lines are the four thresholds MEM drew from
+them:
+
+| line | flucyl value | how to read it |
+|---|---|---|
+| epidemic onset | 53 | above this, the season has started |
+| medium | 250 | a typical epidemic week |
+| high | 442 | a strong week |
+| very high | 569 | as bad as the worst seasons on record |
+
+To grade a live season you feed each week's value to `model.level_of(value)`: it returns
+`baseline` until the curve crosses 53 (onset), then `medium` / `high` / `very high` as it climbs —
+the same bands shaded on the chart. That whole picture comes from just `mem_model(flucyl)` plus
+`mem_chart`.
+
 ## Parameters (same names/defaults as R `memmodel`)
 
 | Python (`mem_model`) | R (`memmodel`) | Default | Meaning |
@@ -110,7 +134,7 @@ median (two-sided), 5 = arithmetic prediction, 6 = geometric prediction.
   package's own `flucyl` data to machine precision — `mem_model` thresholds (as-is *and* with
   interior gaps poked in, so the missing-week smoother is exercised), `mem_goodness`, the
   `roc_analysis` / `optimum_by_inspection` sweeps, `mem_intensity`, `mem_trend`, and the
-  `mem_stability` thresholds. The checks live in `tests/test_equivalence.py`; the R-generated
+  `mem_stability` / `mem_evolution` thresholds. The checks live in `tests/test_equivalence.py`; the R-generated
   reference numbers in `tests/reference/`, each with the `generate_*.R` script that produced it.
 - **Faithfully ported, not approximated:** the mean / prediction / geometric confidence intervals,
   the MAP curve, the slope-criterion optimum, per-season timing, cross-season pooling, the
@@ -120,10 +144,15 @@ median (two-sided), 5 = arithmetic prediction, 6 = geometric prediction.
   order-statistic / sign-test interval rather than R's fiddly interpolated one. It feeds only the
   typical-duration / start-week / %-covered summary, so those few numbers don't bit-match R — every
   actual threshold still does.
-- **Not ported** (intentional scope): confidence-interval type 4 (bootstrap) — it can't be made
-  bit-exact against R's RNG and no default path uses it (`confidence_interval` raises a clear error
-  if you ask for it); the one-sided median interval; optimum methods 1, 3, 4; and the modelled
-  typical curve. The defaults don't use these.
+- **Not ported** (intentional scope). On the surface: R's **plotting** functions (`memsurveillance`,
+  `full.series.graph`, `processPlots`) — `epimem.plot.mem_chart` draws the standard chart instead;
+  the **data-reshaping** helpers (`transformdata`, `transformseries`) — epimem takes a ready numpy
+  matrix; the `flucylraw` raw dataset; and the deprecated `epimem` / `epitiming` shims. On the maths
+  side: confidence-interval type 4 (bootstrap) — it can't be made bit-exact against R's RNG and no
+  default path uses it (`confidence_interval` raises a clear error if you ask for it); the one-sided
+  median interval; optimum methods 1, 3, 4; and the modelled typical curve. The defaults don't use
+  these. **Every computational function in R `mem` is ported** — the omissions above are charts,
+  input-reshaping, and non-default options.
 
 ## Reference
 

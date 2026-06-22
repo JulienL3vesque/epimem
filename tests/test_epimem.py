@@ -65,6 +65,45 @@ def test_mem_model():
     assert th.level_of(0) == "baseline"
 
 
+def test_mem_evolution():
+    rng = np.random.default_rng(7)
+
+    def season(amp):
+        w = np.arange(40)
+        return np.clip(5 + rng.normal(0, 0.5, 40) + amp * np.exp(-((w - 18) ** 2) / (2 * 5 ** 2)), 0, None)
+
+    seasons = np.column_stack([season(a) for a in (16, 22, 14, 25, 19, 28)])   # 40 weeks x 6 seasons
+    n = seasons.shape[1]
+    column = {name: i for i, name in enumerate(epimem.STABILITY_COLUMNS)}
+
+    # sequential: a row per season from the 3rd on, plus "next". cross: a row per season, plus "next".
+    seq = epimem.mem_evolution(seasons, method="sequential")
+    crs = epimem.mem_evolution(seasons, method="cross")
+    assert seq.data.shape == (n - 1, len(epimem.STABILITY_COLUMNS))
+    assert crs.data.shape == (n + 1, len(epimem.STABILITY_COLUMNS))
+
+    # The final "next" row reproduces the all-seasons model on every threshold.
+    full = epimem.mem_model(seasons)
+    for name, attr in [("epidemic", "epidemic_onset"), ("postepidemic", "post_epidemic"),
+                       ("medium", "medium"), ("high", "high"), ("veryhigh", "very_high")]:
+        assert np.isclose(seq.data[-1, column[name]], getattr(full, attr))
+        assert np.isclose(crs.data[-1, column[name]], getattr(full, attr))
+
+    # evolution_seasons caps how many seasons feed each fit: uncapped leave-one-out uses every
+    # other season, capped uses only the nearest few.
+    assert crs.seasons_used[0].sum() == n - 1
+    capped = epimem.mem_evolution(seasons, method="cross", evolution_seasons=3)
+    assert capped.seasons_used[0].sum() == 3
+
+    # an unknown method is rejected.
+    try:
+        epimem.mem_evolution(seasons, method="bogus")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError for an unknown method")
+
+
 def test_edge_cases():
     # One value: the interval centre is the value, the bounds are NaN (matches R, no warning).
     interval = epimem.confidence_interval([7.0], confidence_interval_type=5)

@@ -18,7 +18,7 @@ from .model import MemThresholds, mem_model, mem_intensity
 from .goodness import ConfusionMatrix, DiagnosticScores, Goodness, mem_goodness, METRIC_NAMES
 from .tuning import SweepResult, roc_analysis, optimum_by_inspection, CRITERIA, ROC_COLUMNS
 from .trend import TrendThresholds, mem_trend
-from .stability import Stability, mem_stability, STABILITY_COLUMNS
+from .stability import Evolution, Stability, mem_evolution, mem_stability, STABILITY_COLUMNS
 
 __all__ = [
     "mem_model",
@@ -29,6 +29,8 @@ __all__ = [
     "mem_stability",
     "Stability",
     "STABILITY_COLUMNS",
+    "mem_evolution",
+    "Evolution",
     "mem_timing",
     "EpidemicTiming",
     "confidence_interval",

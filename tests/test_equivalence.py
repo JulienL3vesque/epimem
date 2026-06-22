@@ -154,6 +154,36 @@ def test_stability_equivalence():
         assert (st.data[:, column[centre]] <= st.data[:, column[upper]] + 1e-9).all()
 
 
+# memevolution: how the thresholds would have evolved season by season (both validation methods).
+
+def test_evolution_equivalence():
+    flucyl = _flucyl()
+    ref = _rows("evolution_reference.csv")
+    column = {name: index for index, name in enumerate(epimem.STABILITY_COLUMNS)}
+    threshold_columns = ["epidemic", "postepidemic", "medium", "high", "veryhigh"]
+
+    for method in ("sequential", "cross"):
+        ev = epimem.mem_evolution(flucyl, method=method)
+        rows = sorted((row for row in ref if row["method"] == method), key=lambda r: int(r["row"]))
+        assert ev.data.shape[0] == len(rows), f"{method}: {ev.data.shape[0]} rows vs {len(rows)}"
+
+        # The "number" column (seasons used in each fit) matches R exactly.
+        assert list(ev.counts) == [int(float(row["number"])) for row in rows], f"{method} counts"
+
+        # The threshold columns use mem's mean / geometric CIs and still match R exactly.
+        got_values = ev.data[:, [column[name] for name in threshold_columns]]
+        ref_values = np.array([[float(row[name]) for name in threshold_columns] for row in rows])
+        assert np.max(np.abs(got_values - ref_values)) <= 1e-6, f"{method} thresholds"
+
+        # The duration / start / %-covered columns use our own simpler median CI rather than R's
+        # interpolated one, so we only check they are internally sensible: lower <= centre <= upper.
+        for lower, centre, upper in [("durationll", "duration", "durationul"),
+                                     ("startll", "start", "startul"),
+                                     ("percentagell", "percentage", "percentageul")]:
+            assert (ev.data[:, column[lower]] <= ev.data[:, column[centre]] + 1e-9).all()
+            assert (ev.data[:, column[centre]] <= ev.data[:, column[upper]] + 1e-9).all()
+
+
 if __name__ == "__main__":
     import sys
 

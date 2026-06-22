@@ -71,7 +71,7 @@ def mem_model(
     level_threshold: float = 0.95,          # i.level.threshold
     tails_threshold: int = 1,               # i.tails.threshold
     type_intensity: int = 6,                # i.type.intensity
-    level_intensity=DEFAULT_INTENSITY_LEVELS,   # i.level.intensity
+    level_intensity = DEFAULT_INTENSITY_LEVELS,   # i.level.intensity
     tails_intensity: int = 1,               # i.tails.intensity
     type_other: int = 3,                    # i.type.other (duration/start/% CIs; 3 = median)
     level_other: float = 0.95,              # i.level.other
