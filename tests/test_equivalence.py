@@ -144,9 +144,14 @@ def test_stability_equivalence():
     ref_values = np.array([[float(row[name]) for name in threshold_columns] for row in ref])
     assert np.max(np.abs(got_values - ref_values)) <= 1e-6
 
-    # The duration / start / %-covered columns use our own simpler median confidence interval
-    # rather than R's interpolated one, so we only check they are internally sensible:
-    # lower <= centre <= upper.
+    # The CENTRE of each duration / start / %-covered triple is the plain median, which DOES match
+    # R; only the LL / UL bounds use our own simpler median interval. Pin the three centres against
+    # R, and check the bounds stay internally ordered (lower <= centre <= upper).
+    centre_columns = ["duration", "start", "percentage"]
+    got_centres = st.data[:, [column[name] for name in centre_columns]]
+    ref_centres = np.array([[float(row[name]) for name in centre_columns] for row in ref])
+    assert np.max(np.abs(got_centres - ref_centres)) <= 1e-4
+
     for lower, centre, upper in [("durationll", "duration", "durationul"),
                                  ("startll", "start", "startul"),
                                  ("percentagell", "percentage", "percentageul")]:
@@ -175,8 +180,13 @@ def test_evolution_equivalence():
         ref_values = np.array([[float(row[name]) for name in threshold_columns] for row in rows])
         assert np.max(np.abs(got_values - ref_values)) <= 1e-6, f"{method} thresholds"
 
-        # The duration / start / %-covered columns use our own simpler median CI rather than R's
-        # interpolated one, so we only check they are internally sensible: lower <= centre <= upper.
+        # The CENTRE of each duration / start / %-covered triple matches R; only the LL / UL bounds
+        # use our simpler interval. Pin the centres against R, check the bounds stay ordered.
+        centre_columns = ["duration", "start", "percentage"]
+        got_centres = ev.data[:, [column[name] for name in centre_columns]]
+        ref_centres = np.array([[float(row[name]) for name in centre_columns] for row in rows])
+        assert np.max(np.abs(got_centres - ref_centres)) <= 1e-4, f"{method} centres"
+
         for lower, centre, upper in [("durationll", "duration", "durationul"),
                                      ("startll", "start", "startul"),
                                      ("percentagell", "percentage", "percentageul")]:

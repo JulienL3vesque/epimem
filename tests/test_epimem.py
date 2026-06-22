@@ -10,10 +10,13 @@ import epimem
 
 
 def test_prediction_interval():
-    # Type 5: mean + z*sd.
+    # Type 5: mean +/- z*sd. Check lower / centre / upper, not just upper.
     v = np.array([10.0, 12.0, 14.0])
-    got = epimem.confidence_interval(v, 0.95, confidence_interval_type=5, tails=1).upper
-    assert np.isclose(got, 12 + norm.ppf(0.95) * v.std(ddof=1))
+    ci = epimem.confidence_interval(v, 0.95, confidence_interval_type=5, tails=1)
+    margin = norm.ppf(0.95) * v.std(ddof=1)
+    assert np.isclose(ci.upper, 12 + margin)
+    assert np.isclose(ci.centre, 12.0)
+    assert np.isclose(ci.lower, 12 - margin)
 
 
 def test_mean_interval():
@@ -126,6 +129,12 @@ def test_median_interval():
     assert (seven.lower, seven.centre, seven.upper) == (2.0, 9.0, 15.0)
     five = epimem.confidence_interval([1, 2, 3, 4, 5], confidence_interval_type=3, tails=2)
     assert (five.lower, five.centre, five.upper) == (1.0, 3.0, 5.0)
+    # Larger n: the order-statistic ranks are no longer the plain min/max, so these exercise the
+    # binomial rank math that the small-n cases (where the ranks collapse to 1 and n) cannot.
+    twelve = epimem.confidence_interval(range(1, 13), confidence_interval_type=3, tails=2)
+    assert (twelve.lower, twelve.centre, twelve.upper) == (3.0, 6.5, 10.0)
+    fifteen = epimem.confidence_interval(range(1, 16), confidence_interval_type=3, tails=2)
+    assert (fifteen.lower, fifteen.centre, fifteen.upper) == (4.0, 8.0, 12.0)
     # The one-sided median interval is intentionally not supported.
     try:
         epimem.confidence_interval([1, 2, 3, 4, 5], confidence_interval_type=3, tails=1)
@@ -133,6 +142,34 @@ def test_median_interval():
         pass
     else:
         raise AssertionError("expected NotImplementedError for a one-sided median interval")
+
+
+def test_confidence_branches():
+    # Branches the equivalence tests never reach: use_t, the geometric zero-shift, and two-sided tails.
+    # use_t=True prediction uses the t quantile * sqrt(1 + 1/n), not the normal quantile.
+    use_t = epimem.confidence_interval([2.0, 4, 6], confidence_interval_type=5, tails=1, use_t=True).upper
+    assert np.isclose(use_t, 10.7434178)
+    # A geometric interval containing a zero exercises the log(x + 1) shift and its undo.
+    geo = epimem.confidence_interval([0.0, 2, 4, 6], confidence_interval_type=6, tails=1)
+    assert np.isclose(geo.centre, 2.2010859) and np.isclose(geo.upper, 11.9628730)
+    # Two-sided uses the wider 0.975 quantile; one-sided the 0.95 one.
+    one = epimem.confidence_interval([2.0, 4, 6], confidence_interval_type=1, tails=1).upper
+    two = epimem.confidence_interval([2.0, 4, 6], confidence_interval_type=1, tails=2).upper
+    assert np.isclose(one, 4 + norm.ppf(0.95) * 2 / np.sqrt(3))
+    assert np.isclose(two, 4 + norm.ppf(0.975) * 2 / np.sqrt(3))
+
+
+def test_fill_missing_boundary():
+    # Only interior gaps are reconstructed; leading and trailing NaNs are left as NaN.
+    weeks = np.arange(20)
+    series = 5 + 10 * np.exp(-((weeks - 10) ** 2) / 8)   # a smooth bump, enough points to smooth
+    series[0:2] = np.nan        # leading gap
+    series[18:20] = np.nan      # trailing gap
+    series[10] = np.nan         # interior gap, at the peak
+    filled = epimem.fill_missing(series)
+    assert np.isnan(filled[0]) and np.isnan(filled[1])        # leading left untouched
+    assert np.isnan(filled[18]) and np.isnan(filled[19])      # trailing left untouched
+    assert np.isfinite(filled[10])                            # interior gap filled
 
 
 def test_confusion_matrix():

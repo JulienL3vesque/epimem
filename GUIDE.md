@@ -1,6 +1,6 @@
 # epimem — a plain-English companion guide
 
-This guide explains, with as little jargon as possible, what `epimem` is, the idea behind it,
+This guide explains what `epimem` is, the idea behind it,
 what every piece of the code does, how you use it week to week, what it can and
 cannot tell you, how we know it is correct, and where the method comes from.
 
@@ -39,24 +39,20 @@ That yardstick is what `epimem` builds.
 
 ---
 
-## 3. The big idea (MEM in everyday terms)
+## 3. The big idea
 
-A useful comparison is a thermometer with a fever scale printed on it.
+MEM compares your weekly number (say, the share of 811 calls that are flu-like) against a set of
+warning lines learned from past seasons. Each week you read off which band the number is in: below
+the first line is normal for the time of year; above it the season has started; the higher lines
+grade how intense it is.
 
-- The thermometer is your weekly number (say, the share of 811 calls that are flu-like).
-- The fever scale — "37° normal, 38° fever, 40° dangerous" — is the set of warning lines.
+Two points are central to the method:
 
-MEM's job is to print the right fever scale for your indicator, learned from your own
-past seasons. Once the scale is printed, reading the thermometer each week is straightforward: you
-see which band the needle is in.
-
-Two points to keep in mind, because they are central to the method:
-
-1. **The scale is drawn from past, finished seasons.** You never use the season you are
-   currently in to draw its own scale, because that would be circular. Last year's seasons
-   draw the lines; this year's data is the needle moving across them.
-2. **The scale stays fixed for the whole season.** You do not redefine "fever" every time you
-   take a temperature. You set the lines once (each autumn) and read against them all winter.
+1. **The lines are drawn from past, finished seasons.** You never use the season you are currently
+   in to draw its own lines — that would be circular. Last year's seasons draw the lines; this
+   year's data is read against them.
+2. **The lines stay fixed for the whole season.** You set them once (each autumn) and read against
+   them all winter, rather than redefining "high" every week.
 
 ---
 
@@ -227,7 +223,7 @@ model = mem_model(season_matrix)     # -> the four warning lines, frozen for the
 trend = mem_trend(season_matrix)     # -> the rise/fall cut-offs
 ```
 
-**Every week — read the needle (just a lookup, instant).**
+**Every week — read off the band (just a lookup, instant).**
 
 ```python
 this_week = flu_calls_this_week / all_calls_this_week * 100   # your indicator
@@ -342,6 +338,12 @@ end-to-end checks):
   core thresholds even closer. A deliberately gap-poked version of the data (to exercise the
   missing-week patcher) agrees to within about a hundredth of a unit — still far inside rounding
   noise. The result is the same answers as R, not an approximation.
+
+**You do not need to understand the internal statistics to trust the result.** The confidence comes
+from this comparison, not from anyone holding the maths in their head. The port was built by reading
+the open R source and checking the Python output against the real R numbers until they matched;
+where it was wrong along the way, the comparison caught it — and the same checks re-run automatically
+on every change, so they keep catching any slip.
 
 These checks are committed as automated tests (`tests/test_equivalence.py`) that run without needing
 R (the statistics software the original was written in) installed, by comparing against
