@@ -37,6 +37,8 @@ plot = ["matplotlib>=3.9"]
 test = ["pytest>=8"]
 
 [project.urls]
+Homepage = "https://github.com/JulienL3vesque/epimem"
+Repository = "https://github.com/JulienL3vesque/epimem"
 "Original R package (lozalojo/mem)" = "https://github.com/lozalojo/mem"
 
 # The library needs only numpy + scipy; tests add pytest, the plot module adds matplotlib.

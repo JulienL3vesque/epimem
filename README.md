@@ -95,7 +95,7 @@ inhabitants), Castilla y León, 33 weeks by 8 seasons. It ships with this packag
 `example_seasons()`. Learning the thresholds from its eight seasons and drawing them with
 `mem_chart` gives:
 
-![MEM thresholds learned from the flucyl seasons](docs/flucyl_mem.png)
+![MEM thresholds learned from the flucyl seasons](https://raw.githubusercontent.com/JulienL3vesque/epimem/main/docs/flucyl_mem.png)
 
 The grey lines are the eight past seasons. The dashed lines are the four thresholds:
 
