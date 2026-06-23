@@ -1,122 +1,122 @@
 # epimem
 
-A faithful, readable Python port of the **core Moving Epidemic Method (MEM)** from the R
-package [`lozalojo/mem`](https://github.com/lozalojo/mem) (José E. Lozano).
+A Python port of the core Moving Epidemic Method (MEM) from the R package
+[`lozalojo/mem`](https://github.com/lozalojo/mem) by José E. Lozano.
 
-MEM learns **epidemic-onset** and **intensity** thresholds (medium / high / very high) for a
-seasonal indicator — e.g. weekly influenza rates, or an 811 respiratory call share — from a set
-of past complete seasons, then lets you grade the current season against them.
-
-It also ports the **auto-tuner** and the surveillance companions, so you can pick the best
-detection setting for your own seasons and run the usual reporting outputs.
+MEM learns warning thresholds for a weekly seasonal indicator (for example, influenza incidence
+rates) from past complete seasons: an epidemic-onset line, plus three intensity lines (medium, high,
+very high). Each new week is then graded against them. MEM is unit-agnostic: it accepts any weekly
+indicator (a rate per 100,000, a percent share, a raw count), and the thresholds come out in that
+same unit. This port also includes the auto-tuner and the surveillance companion functions.
 
 | Function | What it does |
 |---|---|
-| `mem_model` | the epidemic-onset + intensity thresholds (the core) |
-| `mem_intensity` | the four headline cut-points, labelled (`Epidemic`, `Medium (40%)`, …) |
-| `mem_trend` | a real-time rising / falling signal from week-over-week changes |
+| `mem_model` | the epidemic-onset and intensity thresholds (the core) |
+| `mem_intensity` | the four cut-points, labelled (`Epidemic`, `Medium (40%)`, and so on) |
+| `mem_trend` | a rising or falling signal from week-over-week changes |
 | `mem_goodness` | how good a setting is, by leave-one-season-out cross-validation |
-| `roc_analysis` | the **auto-tuner**: sweep the slope and pick the best value for your seasons |
-| `optimum_by_inspection` | tune the slope against epidemics you marked by eye |
+| `roc_analysis` | the auto-tuner: sweep the slope and pick the best value for the seasons |
+| `optimum_by_inspection` | tune the slope against analyst-marked epidemics |
 | `mem_stability` | how much the thresholds move as seasons accumulate |
 | `mem_evolution` | how the thresholds would have looked season by season (real-time, or leave-one-out) |
 
-Every one of these is verified to reproduce R `mem` on its own `flucyl` data (see Fidelity below).
+Each function reproduces R `mem` on its own `flucyl` data, the core thresholds to machine precision
+(see Fidelity below).
 
-> Not affiliated with or endorsed by the original author. This is an independent
-> re-implementation for use where R is not available.
+> Not affiliated with or endorsed by the original author. This is an independent re-implementation
+> for use where R is not available.
 
 ## Install
 
-Needs **Python 3.11+**. From a clone of this repo:
+Needs Python 3.11 or later. From a clone of this repo:
 
 ```bash
 pip install -e .            # core: numpy + scipy only
-pip install -e ".[plot]"    # + matplotlib, for the surveillance chart
+pip install -e ".[plot]"    # adds matplotlib, for the chart
 ```
 
-The core depends only on `numpy` and `scipy`; charting (`epimem.plot`) is an optional extra.
+The core depends only on `numpy` and `scipy`. Charting (`epimem.plot`) is an optional extra.
 
 ## Quickstart
 
 ```python
-import numpy as np
-from epimem import mem_model
+from epimem import mem_model, example_seasons
 
-# season_matrix: one ROW per surveillance week, one COLUMN per season.
-# Three toy seasons (52 weeks, a winter bump) — use your real data instead.
-weeks = np.arange(52)
-season_matrix = np.column_stack([5 + amp * np.exp(-((weeks - 20) ** 2) / 30) for amp in (18, 25, 15)])
+# Bundled demo data, so this runs as-is: 8 past influenza seasons of weekly ILI rates
+# (cases per 100,000), from R mem's flucyl. Any 2-D array works in its place, shaped
+# the same way: one column per season, one row per week.
+season_matrix = example_seasons()
+print(season_matrix.shape)                   # (33, 8): 33 weeks, 8 seasons
 
-model = mem_model(season_matrix)             # -> MemThresholds (a frozen dataclass)
-model.epidemic_onset                         # onset: the season has started
-model.medium, model.high, model.very_high    # intensity levels
-model.level_of(season_matrix[20, -1])        # grade a week -> 'baseline' / 'low (epidemic started)' / … / 'very high'
+model = mem_model(season_matrix)             # build the thresholds
+print(model.epidemic_onset)                  # the "season has started" line (~53 cases/100k here)
+print(model.medium, model.high, model.very_high)
+
+# Grade a week. Returns one of: 'baseline', 'low (epidemic started)', 'medium',
+# 'high', 'very high', 'no data'.
+print(model.level_of(300.0))                 # -> 'medium'
 ```
 
-Tune the detection slope to your own seasons, then read the live trend signal:
+`roc_analysis` can pick the detection slope from the seasons, and `mem_trend` gives a trend signal:
 
 ```python
 from epimem import roc_analysis, mem_trend
 
-# roc_analysis (and mem_goodness) need >= 6 seasons by default; mem_model needs only 2.
-# Pass min_seasons to tune on fewer, as here with 3.
-tuning = roc_analysis(season_matrix, min_seasons=3)   # sweep the slope, cross-validated
-best_slope = tuning.best("youden")                    # recommended value under Youden's index
-model = mem_model(season_matrix, param=best_slope)    # refit with the tuned slope (overrides param=2.8)
+# Tuning needs 6+ seasons; the demo data has 8.
+tuning = roc_analysis(season_matrix)
+best_slope = tuning.best("youden")                 # slope that best balances hits vs false alarms
+model = mem_model(season_matrix, param=best_slope) # refit with it (the default is 2.8)
 
-trend = mem_trend(season_matrix)             # week-over-week rising / falling cut-points
+# Rising / falling cut-offs from week-to-week changes:
+trend = mem_trend(season_matrix)
 trend.ascending, trend.descending
 ```
 
 ## Plotting (optional)
 
-With the `plot` extra installed (`pip install -e ".[plot]"`), draw the standard MEM surveillance
-chart — past seasons in grey, the current one bold, with the threshold lines:
+With the `plot` extra installed (`pip install -e ".[plot]"`), `mem_chart` draws the standard MEM
+chart: past seasons in grey, the current one in bold, with the threshold lines.
 
 ```python
 from epimem import mem_model
 from epimem.plot import mem_chart
 
 model = mem_model(season_matrix)
-ax = mem_chart(season_matrix, model,
-               season_labels=["2022-23", "2023-24", "2024-25"],
-               ylabel="ILI share of 811 calls (%)")
+ax = mem_chart(season_matrix, model, ylabel="weekly influenza rate")
 ax.figure.savefig("mem.svg")
 ```
 
 matplotlib is imported lazily, so the core package never requires it.
 
-## Worked example — the bundled `flucyl` data
+## Worked example: the bundled `flucyl` data
 
-`flucyl` is R `mem`'s own example dataset (33 weeks × 8 influenza seasons, Castilla y León), and it
-ships with this package in `tests/reference/`. Learning the thresholds from its eight past seasons
-and drawing them with `mem_chart` (above) gives the classic MEM picture:
+`flucyl` is R `mem`'s own example dataset: weekly influenza-like-illness rates (cases per 100,000
+inhabitants), Castilla y León, 33 weeks by 8 seasons. It ships with this package as
+`example_seasons()`. Learning the thresholds from its eight seasons and drawing them with
+`mem_chart` gives:
 
 ![MEM thresholds learned from the flucyl seasons](docs/flucyl_mem.png)
 
-The grey lines are the eight past seasons; the dashed lines are the four thresholds MEM drew from
-them:
+The grey lines are the eight past seasons. The dashed lines are the four thresholds:
 
-| line | flucyl value | how to read it |
+| line | rate (per 100,000) | how to read it |
 |---|---|---|
 | epidemic onset | 53 | above this, the season has started |
 | medium | 250 | a typical epidemic week |
 | high | 442 | a strong week |
-| very high | 569 | as bad as the worst seasons on record |
+| very high | 569 | as bad as the worst past seasons |
 
-To grade a live season you feed each week's value to `model.level_of(value)`: it returns
-`baseline` until the curve crosses 53 (onset), then `medium` / `high` / `very high` as it climbs —
-the same bands shaded on the chart. That whole picture comes from just `mem_model(flucyl)` plus
-`mem_chart`.
+A live season is graded by passing each week's value to `model.level_of(value)`: it returns
+`baseline` until the value crosses 53 (onset), then `low (epidemic started)`, `medium`, `high`,
+`very high` as it climbs.
 
-## Parameters (same names/defaults as R `memmodel`)
+## Parameters (same names and defaults as R `memmodel`)
 
 | Python (`mem_model`) | R (`memmodel`) | Default | Meaning |
 |---|---|---|---|
-| `method` | `i.method` | 2 | optimum method (only 2 = criterion ported) |
-| `param` | `i.param` | 2.8 | slope criterion (% added per week) |
-| `n_values` | `i.n.max` | `round(30/n_seasons)` | highest values per season used |
+| `method` | `i.method` | 2 | optimum method (only 2, the criterion, is ported) |
+| `param` | `i.param` | 2.8 | how steep the week-over-week rise must be to call onset; higher is stricter (later onset) |
+| `n_values` | `i.n.max` | `round(30/n_seasons)` | how many top weeks per season feed the threshold pools (~30 in all); rarely changed |
 | `type_threshold` | `i.type.threshold` | 5 | onset interval: arithmetic prediction |
 | `level_threshold` | `i.level.threshold` | 0.95 | onset confidence level |
 | `tails_threshold` | `i.tails.threshold` | 1 | one-sided |
@@ -125,37 +125,42 @@ the same bands shaded on the chart. That whole picture comes from just `mem_mode
 | `tails_intensity` | `i.tails.intensity` | 1 | one-sided |
 | `use_t` | `i.use.t` | False | t vs normal quantiles |
 
-Confidence-interval **types** match R: 1 = arithmetic mean, 2 = geometric mean, 3 = nonparametric
+Confidence-interval types match R: 1 = arithmetic mean, 2 = geometric mean, 3 = nonparametric
 median (two-sided), 5 = arithmetic prediction, 6 = geometric prediction.
 
-## Fidelity & limitations (read these)
+## Fidelity and limitations
 
-- **Verified against R, not just claimed.** Every function above reproduces R `mem` on the
-  package's own `flucyl` data to machine precision — `mem_model` thresholds (as-is *and* with
-  interior gaps poked in, so the missing-week smoother is exercised), `mem_goodness`, the
-  `roc_analysis` / `optimum_by_inspection` sweeps, `mem_intensity`, `mem_trend`, and the
-  `mem_stability` / `mem_evolution` thresholds. The checks live in `tests/test_equivalence.py`; the R-generated
-  reference numbers in `tests/reference/`, each with the `generate_*.R` script that produced it.
-- **Faithfully ported, not approximated:** the mean / prediction / geometric confidence intervals,
-  the MAP curve, the slope-criterion optimum, per-season timing, cross-season pooling, the
-  leave-one-season-out goodness metrics, the kernel smoother + its bandwidth selection
-  (`sm.regression` plus `h.select`'s df=6 rule), and the rank-based tuner.
-- **Deliberately simpler than R:** the median confidence interval (type 3) uses the standard
-  order-statistic / sign-test interval rather than R's fiddly interpolated one. It feeds only the
-  typical-duration / start-week / %-covered summary, so those few numbers don't bit-match R — every
-  actual threshold still does.
-- **Not ported** (intentional scope). On the surface: R's **plotting** functions (`memsurveillance`,
-  `full.series.graph`, `processPlots`) — `epimem.plot.mem_chart` draws the standard chart instead;
-  the **data-reshaping** helpers (`transformdata`, `transformseries`) — epimem takes a ready numpy
-  matrix; the `flucylraw` raw dataset; and the deprecated `epimem` / `epitiming` shims. On the maths
-  side: confidence-interval type 4 (bootstrap) — it can't be made bit-exact against R's RNG and no
-  default path uses it (`confidence_interval` raises a clear error if you ask for it); the one-sided
-  median interval; optimum methods 1, 3, 4; and the modelled typical curve. The defaults don't use
-  these. **Every computational function in R `mem` is ported** — the omissions above are charts,
-  input-reshaping, and non-default options.
+Verified against R. Every function above was run in both the R original and this port on the
+package's own `flucyl` data and the numbers compared: `mem_model`, `mem_goodness`, the `roc_analysis`
+and `optimum_by_inspection` sweeps, `mem_intensity`, `mem_trend`, and the `mem_stability` and
+`mem_evolution` thresholds. The clean thresholds match to machine precision; the gap-filled
+thresholds (where R and numpy round the missing-week fill slightly differently) and the
+cross-validated scores match to about one part in a million. The checks are in
+`tests/test_equivalence.py`; the R-generated reference numbers are in `tests/reference/`, each with
+the `generate_*.R` script that produced it.
+
+Ported faithfully: the mean, prediction, and geometric confidence intervals, the MAP curve, the
+slope-criterion optimum, per-season timing, cross-season pooling, the leave-one-season-out goodness
+metrics, the kernel smoother and its bandwidth selection (`sm.regression` and `h.select`'s df=6
+rule), and the rank-based tuner.
+
+Simpler than R in one place: the median confidence interval (type 3) uses the standard
+order-statistic (sign-test) interval instead of R's interpolated one. It feeds only the typical
+duration, start-week, and percent-covered summary, so those numbers do not match R to the last
+digit; the thresholds themselves do.
+
+Not ported, by choice:
+
+- The R plotting functions (`memsurveillance`, `full.series.graph`, `processPlots`).
+  `epimem.plot.mem_chart` draws the standard chart instead.
+- The data-reshaping helpers (`transformdata`, `transformseries`). epimem takes a ready numpy matrix.
+- The `flucylraw` raw dataset and the deprecated `epimem` and `epitiming` functions.
+- Confidence-interval type 4 (bootstrap): it cannot be reproduced exactly against R's random-number
+  stream, and no default uses it (`confidence_interval` raises a clear error if it is requested).
+  Also the one-sided median interval, optimum methods 1, 3, and 4, and the modelled typical curve.
 
 ## Reference
 
-Vega T, Lozano JE, Ortiz de Lejarazu R, et al. *Influenza surveillance in Europe: establishing
+Vega T, Lozano JE, Meerhoff T, et al. *Influenza surveillance in Europe: establishing
 epidemic thresholds by the moving epidemic method.* Influenza Other Respir Viruses. 2013;7(4):546-58.
 Original R package: https://github.com/lozalojo/mem

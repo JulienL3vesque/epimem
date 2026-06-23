@@ -19,9 +19,11 @@ from .goodness import ConfusionMatrix, DiagnosticScores, Goodness, mem_goodness,
 from .tuning import SweepResult, roc_analysis, optimum_by_inspection, CRITERIA, ROC_COLUMNS
 from .trend import TrendThresholds, mem_trend
 from .stability import Evolution, Stability, mem_evolution, mem_stability, STABILITY_COLUMNS
+from .datasets import example_seasons
 
 __all__ = [
     "mem_model",
+    "example_seasons",
     "MemThresholds",
     "mem_intensity",
     "mem_trend",

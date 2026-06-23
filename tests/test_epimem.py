@@ -41,6 +41,14 @@ def test_unsupported_interval_type_raises():
     raise AssertionError("expected ValueError for confidence_interval_type=4")
 
 
+def test_example_seasons():
+    seasons = epimem.example_seasons()
+    assert seasons.shape == (33, 8)              # the bundled flucyl data
+    assert np.isfinite(seasons).all()
+    model = epimem.mem_model(seasons)            # must feed straight into the model
+    assert model.epidemic_onset < model.high
+
+
 def test_max_n_values():
     assert list(epimem.max_n_values([1, 5, 3, np.nan, 2], 3)[:3]) == [5.0, 3.0, 2.0]
 
